@@ -90,7 +90,7 @@ public class Player : MonoBehaviour
 
     public void GameOver()
     {
-        if (!gameOver) // Only trigger once
+        if (!gameOver) 
         {
             gameOver = true;
 
@@ -102,7 +102,7 @@ public class Player : MonoBehaviour
                 return;
             }
 
-            prk.RpcCall("GameOver", prk.MyPlayer().id);
+            prk.RpcCall("GameOver", gameOver);
             this.gameObject.SetActive(false);
 
         }

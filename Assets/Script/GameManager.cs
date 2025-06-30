@@ -50,7 +50,8 @@ public class GameManager : MonoBehaviour
             {"score", 0},
             {"isDead", false}
         },
-        }, () => {
+        }, () =>
+        {
             // Game launch logic here
             _playroomKit.OnPlayerJoin(AddPlayer);
             _playroomKit.RpcRegister("GameOver", HandleGameOver);
@@ -59,22 +60,19 @@ public class GameManager : MonoBehaviour
         });
     }
 
-    private void HandleGameOver(string playerId, string senderId)
+    private void HandleGameOver(string data, string senderId)
     {
-        //var players = players;
-        if (players.Count < 2) return;
+        bool gameOver = bool.Parse(data);
 
-        // Determine player index
-        int deadPlayerIndex = players.FindIndex(p => p.id == playerId);
+        Debug.LogWarning($"Game over for {senderId} : gameOver: {gameOver}");
 
-        // First player to join is index 0 (Player 1)
-        if (deadPlayerIndex == 0)
+        if (_playroomKit.IsHost())
         {
-            playerOneDied.gameObject.SetActive(true);
+            playerOneDied.gameObject.SetActive(gameOver);
         }
         else
         {
-            playerTwoDied.gameObject.SetActive(true);
+            playerTwoDied.gameObject.SetActive(gameOver);
         }
     }
 
@@ -191,7 +189,7 @@ public class GameManager : MonoBehaviour
 
         for (var i = 0; i < players.Count; i++)
         {
-            if (players[i] != null && PlayerDict.TryGetValue(players[i].id, out GameObject playerObj))
+            if (players[i] != null)
             {
                 var pos = players[i].GetState<Vector3>("pos");
                 var color = players[i].GetState<Color>("color");
@@ -200,22 +198,32 @@ public class GameManager : MonoBehaviour
                     playerGameObjects[i].GetComponent<Transform>().position = pos;
                     playerGameObjects[i].GetComponent<SpriteRenderer>().color = color;
                 }
+
             }
         }
     }
 
+
     private void AddPlayer(PlayroomKit.Player player)
     {
-
-        //_playroomKit.IsHost(); > player 1 / player 2 
-
         playerObj = Instantiate(playerPrefabs, spawnPosPlayerOne, Quaternion.identity);
 
-        if(_playroomKit.IsHost())
+        Debug.Log($"{player.GetProfile().name} with {player.id} joined the game. IS HOST: {_playroomKit.IsHost()}");
+
+        if (_playroomKit.IsHost())
+        {
+            _playroomKit.SetState("PlayerOneId", player.id);
+        }
+        else
+        {
+            _playroomKit.SetState("PlayerTwoId", player.id);
+        }
+
+        if (_playroomKit.IsHost())
         {
             playerObj.transform.position = spawnPosPlayerOne;
         }
-        else 
+        else
         {
             playerObj.transform.position = spawnPosPlayerTwo;
         }
