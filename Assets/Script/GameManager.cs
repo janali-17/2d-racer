@@ -4,6 +4,10 @@ using System.Collections.Generic;
 using TMPro;
 using UnityEngine.UI;
 using System;
+using System.Linq;
+using System.Xml.Schema;
+using static Playroom.PlayroomKit;
+using System.Collections;
 
 public class GameManager : MonoBehaviour
 {
@@ -29,6 +33,7 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// List of players and their gameObjects.
     /// </summary>
+    private static readonly List<string> playersIds = new();
     private static readonly List<PlayroomKit.Player> players = new();
     private static Dictionary<string, GameObject> PlayerDict = new();
     private static readonly List<GameObject> playerGameObjects = new();
@@ -52,12 +57,68 @@ public class GameManager : MonoBehaviour
         },
         }, () =>
         {
-            // Game launch logic here
             _playroomKit.OnPlayerJoin(AddPlayer);
+
+
+            Debug.LogWarning("IS HOST: " + _playroomKit.IsHost());
+
+            // register an rpc event called SpawnPlayers, call this rpc for all players when there are 2 playere in the list.
+            _playroomKit.RpcRegister("SpawnPlayers", SpawnPlayers);
+            _playroomKit.RpcRegister("UpdatePlayerList", UpdateLocalPlayers);
             _playroomKit.RpcRegister("GameOver", HandleGameOver);
             print($"[Unity Log] isHost: {_playroomKit.IsHost()}");
             Time.timeScale = 1.0f;
         });
+    }
+
+
+
+    private void UpdateLocalPlayers(string data, string hostId)
+    {
+        Debug.LogWarning($"player ids from host: {data}");
+        List<string> newOrderIds = data.Split(',').Select(id => id.Trim()).Where(id => !string.IsNullOrEmpty(id)).ToList();
+
+        playersIds.Clear();
+        playersIds.AddRange(newOrderIds);
+
+        Debug.Log($"Updated playersIds list: {string.Join(", ", playersIds)}");
+
+        Debug.LogWarning("Player ids count: " + playersIds.Count);
+
+        if (playersIds.Count == 2)
+        {
+            _playroomKit.RpcCall("SpawnPlayers", "");
+        }
+    }
+
+
+
+    private void SpawnPlayers(string data, string hostId)
+    {
+        var reorderedPlayers = playersIds.Select(id => players.FirstOrDefault(p => p.id == id)).Where(p => p != null).ToList();
+        players.Clear();
+        players.AddRange(reorderedPlayers);
+
+        if (players.Count < 2)
+        {
+            Debug.LogError("2 players not in game");
+            return;
+        }
+
+        playerOne = players[0];
+        playerTwo = players[1];
+
+
+        GameObject playerOneObject = Instantiate(playerPrefabs, spawnPosPlayerOne, Quaternion.identity);
+        playerOneObject.GetComponent<SpriteRenderer>().color = playerOne.GetProfile().color;
+
+
+        GameObject playerTwoObject = Instantiate(playerPrefabs, spawnPosPlayerTwo, Quaternion.identity);
+        playerTwoObject.GetComponent<SpriteRenderer>().color = playerTwo.GetProfile().color;
+
+
+        PlayerDict.Add(playerOne.id, playerOneObject);
+        PlayerDict.Add(playerTwo.id, playerTwoObject);
     }
 
     private void HandleGameOver(string data, string senderId)
@@ -76,164 +137,61 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    //private void HandleGameOver(string data, string senderId)
-    //{
-    //    if (bool.Parse(data) == true) 
-    //    {
-    //        // show game over for player one
-    //        playerOneDied.gameObject.SetActive(true);
-    //    }
-    //    else
-    //    {
-    //        // show for player 2
-    //        playerTwoDied.gameObject.SetActive(true);
-    //    }
-    //}
-
     private void Update()
     {
-        LocalPlayerSet();
-        GetOtherPlayers();
+        if (PlayerDict.Count > 0)
+        {
+            LocalPlayerSet();
+            GetOtherPlayers();
+        }
     }
-
-
-    //public void CheckForGameOver()
-    //{
-    //    if (playerObj.GetComponent<Player>().gameOver)
-    //    {
-    //        if (_playroomKit.IsHost())
-    //        {
-    //            _playroomKit.MyPlayer().SetState("isDead", true);
-    //        }
-    //        else
-    //        {
-    //            _playroomKit.MyPlayer().SetState("isDead", true);
-    //        }
-    //    }
-
-    //    // Check other players' death states
-    //    foreach (var player in players)
-    //    {
-    //        if (player.id != _playroomKit.MyPlayer().id)
-    //        {
-    //            bool isOtherPlayerDead = player.GetState<bool>("isDead");
-    //            if (isOtherPlayerDead)
-    //            {
-    //                if (_playroomKit.IsHost())
-    //                {
-    //                    playerOneDied.gameObject.SetActive(true);
-    //                }
-    //                else
-    //                {
-    //                    playerTwoDied.gameObject.SetActive(true);
-    //                }
-    //            }
-    //        }
-    //    }
-    //}
 
     private void LocalPlayerSet()
     {
         if (playerJoined)
         {
-            var myPlayer = _playroomKit.MyPlayer();
-            var index = players.IndexOf(myPlayer);
-
-            playerGameObjects[index].GetComponent<Player>().PlayerJumpInput();
-
-            players[index].SetState("pos", playerGameObjects[index].transform.position);
-
-
-        }
-    }
-    //private void CheckForDeaths()
-    //{
-    //    var myPlayer = _playroomKit.MyPlayer();
-    //    if (myPlayer == null) return;
-
-    //    foreach (var player in players)
-    //    {
-    //        var deadState = player.GetState<string>("dead");
-    //        if (string.IsNullOrEmpty(deadState)) continue;
-
-    //        bool isDead = deadState.ToLower() == "true";
-    //        if (!isDead) continue;
-
-    //        bool isMe = player.id == myPlayer.id;
-
-    //        if (isMe)
-    //        {
-    //            // Show MY death image
-    //            if (_playroomKit.IsHost())
-    //                playerOneDied.gameObject.SetActive(true);
-    //            else
-    //                playerTwoDied.gameObject.SetActive(true);
-    //        }
-    //        else
-    //        {
-    //            // Show OTHER player's death image
-    //            if (_playroomKit.IsHost())
-    //                playerTwoDied.gameObject.SetActive(true);
-    //            else
-    //                playerOneDied.gameObject.SetActive(true);
-    //        }
-    //    }
-    //}
-
-
-
-
-
-    private void GetOtherPlayers()
-    {
-
-        for (var i = 0; i < players.Count; i++)
-        {
-            if (players[i] != null)
+            if (PlayerDict.TryGetValue(_playroomKit.MyPlayer().id, out GameObject p))
             {
-                var pos = players[i].GetState<Vector3>("pos");
-                var color = players[i].GetState<Color>("color");
-                if (playerGameObjects != null)
-                {
-                    playerGameObjects[i].GetComponent<Transform>().position = pos;
-                    playerGameObjects[i].GetComponent<SpriteRenderer>().color = color;
-                }
-
+                p.GetComponent<Player>().PlayerJumpInput();
+                _playroomKit.MyPlayer().SetState("pos", p.transform.position);
             }
         }
     }
 
+    private void GetOtherPlayers()
+    {
+        //for (var i = 0; i < players.Count; i++)
+        //{
+        //    if (players[i] != null)
+        //    {
+        //        var pos = players[i].GetState<Vector3>("pos");
+        //        if (playerGameObjects != null)
+        //        {
+        //            playerGameObjects[i].GetComponent<Transform>().position = pos;
+        //        }
+        //    }
+        //}
+
+        foreach (KeyValuePair<string, GameObject> player in PlayerDict)
+        {
+            if (player.Key == _playroomKit.MyPlayer().id) continue;
+
+            Vector3 pos = _playroomKit.GetPlayer(player.Key).GetState<Vector3>("pos");
+            player.Value.GetComponent<Transform>().position = pos;
+        }
+    }
 
     private void AddPlayer(PlayroomKit.Player player)
     {
-        playerObj = Instantiate(playerPrefabs, spawnPosPlayerOne, Quaternion.identity);
-
-        Debug.Log($"{player.GetProfile().name} with {player.id} joined the game. IS HOST: {_playroomKit.IsHost()}");
-
         if (_playroomKit.IsHost())
         {
-            _playroomKit.SetState("PlayerOneId", player.id);
-        }
-        else
-        {
-            _playroomKit.SetState("PlayerTwoId", player.id);
-        }
-
-        if (_playroomKit.IsHost())
-        {
-            playerObj.transform.position = spawnPosPlayerOne;
-        }
-        else
-        {
-            playerObj.transform.position = spawnPosPlayerTwo;
+            playersIds.Add(player.id);
+            string data = string.Join(",", playersIds);
+            Debug.Log($"host sending player ids: {data}");
+            _playroomKit.RpcCall("UpdatePlayerList", data, PlayroomKit.RpcMode.OTHERS);
         }
 
-        player.SetState("color", player.GetProfile().color);
-
-        PlayerDict.Add(player.id, playerObj);
         players.Add(player);
-        playerGameObjects.Add(playerObj);
-
 
         playerJoined = true;
         player.OnQuit(RemovePlayer);
@@ -265,7 +223,7 @@ public class GameManager : MonoBehaviour
 
     //Draw Gizmos
     [SerializeField] private float gizmoRadius = 0.3f;
-    [SerializeField] private Color gizmoColor = Color.green;
+    [SerializeField] private UnityEngine.Color gizmoColor = Color.green;
 
     private void OnDrawGizmos()
     {

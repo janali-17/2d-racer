@@ -22,7 +22,7 @@ public class Obstacles : MonoBehaviour
         if(other.GetComponent<Player>() != null)
         {
             Player player = other.GetComponent<Player>();
-            player.GameOver();
+            //player.GameOver();
             //GameManager.Instance.CheckForGameOver();
             Debug.Log("Hitting player");
 

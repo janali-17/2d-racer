@@ -19,24 +19,6 @@ public class Player : MonoBehaviour
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
-        //text.gameObject.SetActive(false);
-    }
-
-    private void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        if (gameOver==true) return;
-        Debug.Log("Player is Updating");
-        isGrounded = _IsGrounded();
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded) { 
-            PlayerJump();
-        }   
-        Restart();
     }
     
     public void PlayerJumpInput()
@@ -46,7 +28,6 @@ public class Player : MonoBehaviour
         {
             PlayerJump();
         }
-       // Restart();
     }
 
     private void Restart()
@@ -104,7 +85,6 @@ public class Player : MonoBehaviour
 
             prk.RpcCall("GameOver", gameOver);
             this.gameObject.SetActive(false);
-
         }
     }
     private void OnDestroy()
