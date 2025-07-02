@@ -12,13 +12,18 @@ public class Player : MonoBehaviour
     private Rigidbody2D rb;
     private bool _resetJumpNeeded;
     private bool isGrounded;
+    private Animator animator;
+
     public bool gameOver = false;
+
+    private string thisNetworkID;
 
     public LayerMask _layerMask;
 
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
     }
     
     public void PlayerJumpInput()
@@ -27,8 +32,15 @@ public class Player : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
             PlayerJump();
+            animator.SetTrigger("Jump");
         }
     }
+
+    public void Initialize(string networkID)
+    {
+        thisNetworkID = networkID;
+    }
+
 
     private void Restart()
     {
@@ -50,7 +62,7 @@ public class Player : MonoBehaviour
 
     private bool _IsGrounded()
     {
-        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, 0.6f, _layerMask);
+        RaycastHit2D hit = Physics2D.Raycast(transform.position, Vector2.down, 1f, _layerMask);
         Debug.DrawRay(transform.position, Vector2.down, Color.green);
         if (hit.collider != null)
         {
@@ -74,17 +86,9 @@ public class Player : MonoBehaviour
         if (!gameOver) 
         {
             gameOver = true;
+            var playerRoomKit = GameManager.Instance.GetPlayerRoomKit();
 
-            var prk = GameManager.Instance.GetPlayerRoomKit();
-
-            if (prk == null)
-            {
-                Debug.LogWarning("prk is null!");
-                return;
-            }
-
-            prk.RpcCall("GameOver", gameOver);
-            this.gameObject.SetActive(false);
+            playerRoomKit.RpcCall("OnPlayerDied",thisNetworkID, PlayroomKit.RpcMode.ALL);
         }
     }
     private void OnDestroy()

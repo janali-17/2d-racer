@@ -19,13 +19,10 @@ public class Obstacles : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        if(other.GetComponent<Player>() != null)
+        if (other.GetComponent<Player>() != null)
         {
             Player player = other.GetComponent<Player>();
-            //player.GameOver();
-            //GameManager.Instance.CheckForGameOver();
-            Debug.Log("Hitting player");
-
+            player.GameOver();
 
         }
         else if (other.CompareTag("Destroyer"))

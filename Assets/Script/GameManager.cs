@@ -30,6 +30,8 @@ public class GameManager : MonoBehaviour
 
     private static bool playerJoined;
 
+    private bool P1,P2;
+
     /// <summary>
     /// List of players and their gameObjects.
     /// </summary>
@@ -50,40 +52,49 @@ public class GameManager : MonoBehaviour
     {
         _playroomKit.InsertCoin(new InitOptions()
         {
+            gameId = "fUnqBN5GmfFD6CTUykzK",
             maxPlayersPerRoom = 2,
             defaultPlayerStates = new() {
             {"score", 0},
             {"isDead", false}
+
         },
         }, () =>
         {
             _playroomKit.OnPlayerJoin(AddPlayer);
-
-
-            Debug.LogWarning("IS HOST: " + _playroomKit.IsHost());
-
-            // register an rpc event called SpawnPlayers, call this rpc for all players when there are 2 playere in the list.
             _playroomKit.RpcRegister("SpawnPlayers", SpawnPlayers);
             _playroomKit.RpcRegister("UpdatePlayerList", UpdateLocalPlayers);
-            _playroomKit.RpcRegister("GameOver", HandleGameOver);
+            _playroomKit.RpcRegister("OnPlayerDied", OnPlayerDied);
             print($"[Unity Log] isHost: {_playroomKit.IsHost()}");
             Time.timeScale = 1.0f;
         });
     }
 
+    private void OnPlayerDied(string data, string arg2)
+    {
+        if (data == playerOne.id)
+        {
+            P1 = true;
+            playerOneDied.gameObject.SetActive(true);
+        }
+        if (data == playerTwo.id)
+        {
+            P2 = true;
+            playerTwoDied.gameObject.SetActive(true);
+        }
 
+        if(P1 && P2)
+        {
+            Time.timeScale = 0.0f;
+        }
+    }
 
     private void UpdateLocalPlayers(string data, string hostId)
     {
-        Debug.LogWarning($"player ids from host: {data}");
         List<string> newOrderIds = data.Split(',').Select(id => id.Trim()).Where(id => !string.IsNullOrEmpty(id)).ToList();
 
         playersIds.Clear();
         playersIds.AddRange(newOrderIds);
-
-        Debug.Log($"Updated playersIds list: {string.Join(", ", playersIds)}");
-
-        Debug.LogWarning("Player ids count: " + playersIds.Count);
 
         if (playersIds.Count == 2)
         {
@@ -101,7 +112,6 @@ public class GameManager : MonoBehaviour
 
         if (players.Count < 2)
         {
-            Debug.LogError("2 players not in game");
             return;
         }
 
@@ -119,23 +129,11 @@ public class GameManager : MonoBehaviour
 
         PlayerDict.Add(playerOne.id, playerOneObject);
         PlayerDict.Add(playerTwo.id, playerTwoObject);
+
+        playerOneObject.GetComponent<Player>().Initialize(playerOne.id);
+        playerTwoObject.GetComponent<Player>().Initialize(playerTwo.id);
     }
 
-    private void HandleGameOver(string data, string senderId)
-    {
-        bool gameOver = bool.Parse(data);
-
-        Debug.LogWarning($"Game over for {senderId} : gameOver: {gameOver}");
-
-        if (_playroomKit.IsHost())
-        {
-            playerOneDied.gameObject.SetActive(gameOver);
-        }
-        else
-        {
-            playerTwoDied.gameObject.SetActive(gameOver);
-        }
-    }
 
     private void Update()
     {
@@ -160,18 +158,6 @@ public class GameManager : MonoBehaviour
 
     private void GetOtherPlayers()
     {
-        //for (var i = 0; i < players.Count; i++)
-        //{
-        //    if (players[i] != null)
-        //    {
-        //        var pos = players[i].GetState<Vector3>("pos");
-        //        if (playerGameObjects != null)
-        //        {
-        //            playerGameObjects[i].GetComponent<Transform>().position = pos;
-        //        }
-        //    }
-        //}
-
         foreach (KeyValuePair<string, GameObject> player in PlayerDict)
         {
             if (player.Key == _playroomKit.MyPlayer().id) continue;
@@ -187,7 +173,6 @@ public class GameManager : MonoBehaviour
         {
             playersIds.Add(player.id);
             string data = string.Join(",", playersIds);
-            Debug.Log($"host sending player ids: {data}");
             _playroomKit.RpcCall("UpdatePlayerList", data, PlayroomKit.RpcMode.OTHERS);
         }
 
